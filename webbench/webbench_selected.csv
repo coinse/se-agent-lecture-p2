@@ -1,0 +1,8 @@
+ID,Starting URL,Task
+0,https://www.acehardware.com,"On the product details page for the ""Black & Decker Power Tool Combo Kit,"" list its specifications including dimensions, voltage, and warranty information.
+7,https://www.agoda.com,"Search for hotels in London, UK that offer free Wi-Fi and list the names and addresses of the first 3 properties found."
+11,https://www.agoda.com,"Apply the filter for hotels in Bali, Indonesia that offer free cancellation and list the first 5 properties with their nightly rates."
+1495,https://www.sciencedirect.com,"Search for articles on “machine learning” published in 2023 and note the number of results.
+Only use http://sciencedirect.com to achieve the task."
+1498,https://www.sciencedirect.com,"Perform an advanced search for “machine learning” limited to 2022 and 2023, record the article count for each year, and check which year had more results."
+2713,https://www.xbox.com/en-US,"Find out the price of the Xbox Series X console."
