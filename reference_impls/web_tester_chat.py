@@ -30,10 +30,14 @@ import traceback
 load_dotenv()
 
 
-async def main(server_script_path=None):
+async def main(server_script_path: str):
     client = MCPClient()
     try:
-        """TODO"""
+        # await client.connect_to_python_server(server_script_path)
+        await client.connect_to_server(
+            command="npx", 
+            args=["-y", "@playwright/mcp@latest", "--output-dir", "./"]
+        )
         await client.chat_loop()
     finally:
         await client.cleanup()
@@ -71,7 +75,9 @@ class MCPClient:
     async def connect_to_npx_server(self, package: str, additional_args: list[str] = None):
         """Helper method to connect to an NPX-based MCP server"""
         args = ["-y", package]
-        """TODO"""
+        if additional_args:
+            args.extend(additional_args)
+        await self.connect_to_server("npx", args)
 
     async def cleanup(self):
         await self.exit_stack.aclose()
@@ -235,6 +241,7 @@ class MCPClient:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MCP Client for connecting to a server.")
+    parser.add_argument('server_script_path', help="Path to the server script (.py or .js)", type=str)
     args = parser.parse_args()
 
-    asyncio.run(main())
+    asyncio.run(main(args.server_script_path))

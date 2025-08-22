@@ -21,6 +21,7 @@ from openai.types.chat.chat_completion_message_tool_call_param import Function
 from openai.types.shared_params.function_definition import FunctionDefinition
 
 from utils import stringify_tool_call_results, stringify_tool_call_requests, format_assistant_responses
+from actor_utils import *
 
 import json
 import argparse
@@ -30,11 +31,14 @@ import traceback
 load_dotenv()
 
 
-async def main(server_script_path=None):
+async def main(target_websites: str):
     client = MCPClient()
     try:
-        """TODO"""
-        await client.chat_loop()
+        await client.connect_to_server(
+            command="npx", 
+            args=["-y", "@playwright/mcp@latest", "--output-dir", "./"]
+        )
+        await client.testing_loop(target_websites)
     finally:
         await client.cleanup()
 
@@ -71,7 +75,9 @@ class MCPClient:
     async def connect_to_npx_server(self, package: str, additional_args: list[str] = None):
         """Helper method to connect to an NPX-based MCP server"""
         args = ["-y", package]
-        """TODO"""
+        if additional_args:
+            args.extend(additional_args)
+        await self.connect_to_server("npx", args)
 
     async def cleanup(self):
         await self.exit_stack.aclose()
@@ -213,28 +219,65 @@ class MCPClient:
 
         raise ValueError(f"[ERROR] Unknown finish reason during streaming: {finish_reason}")
 
-    async def chat_loop(self):
-        """Run an interactive chat loop with streaming output"""
-        print("Welcome to the MCP Client! Type 'exit' to quit.")
-        self.messages = []
+    async def testing_loop(self, target_websites):
+        """Run an interactive (or autonomous) testing loop"""
+        print(f"Testing Agent for the websites: {target_websites}")
+        self.messages = [{
+            "role": "system",
+            "content": "You are a testing agent that can interact with web pages and perform tasks."
+        }]
+
+        await self.process_tool_call({
+            "type": "function",
+            "function": {
+                "name": "browser_navigate",
+                "arguments": json.dumps({
+                    "url": target_websites
+                })
+            },
+            "id": "initial_navigation"
+        })
 
         while True:
-            user_input = input("\nYou: ")
+            user_input = input("\nProvide a task instruction for testing (or 'exit' to quit): ")
             if user_input.lower() == 'exit':
                 break
 
-            self.messages.append(ChatCompletionUserMessageParam(role="user", content=user_input))
+            while True:
+                self.messages.append(process_task_instruction(user_input, target_websites))
 
-            try:
-                self.messages = await self.process_messages_streaming(self.messages)
+                try:
+                    self.messages = await self.process_messages_streaming(self.messages)
 
-            except Exception as e:
-                print(f"Error processing user input: {e}")
-                traceback.print_exc()
+                except Exception as e:
+                    print(f"Error processing user input: {e}")
+                    traceback.print_exc()
+
+                choice = input("\nPress r to retry, otherwise for trying new task: ")
+                if choice.lower() == 'r':
+                    await self.process_tool_call({
+                        "type": "function",
+                        "function": {
+                            "name": "browser_navigate",
+                            "arguments": json.dumps({
+                                "url": target_websites
+                            })
+                        },
+                        "id": "initial_navigation"
+                    })
+                    continue
+                else:
+                    # Reset messages for new task
+                    self.messages = [{
+                        "role": "system",
+                        "content": "You are a testing agent that can interact with web pages and perform tasks."
+                    }]
+                    break
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MCP Client for connecting to a server.")
+    parser.add_argument('target_websites', help="Path to the server script (.py or .js)", type=str)
     args = parser.parse_args()
 
-    asyncio.run(main())
+    asyncio.run(main(args.target_websites))
